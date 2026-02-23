@@ -53,11 +53,23 @@ const Hero = () => {
             </div>
 
             <div className="flex flex-col sm:flex-row gap-4">
-              <button className="bg-[#1D4ED8] text-white px-8 py-4 rounded-full font-bold text-lg hover:bg-blue-700 transition-all shadow-lg hover:shadow-xl flex items-center justify-center transform hover:-translate-y-0.5">
+              <button 
+                onClick={() => {
+                  const target = document.querySelector('#play-now');
+                  if (target) target.scrollIntoView({ behavior: 'smooth' });
+                }}
+                className="bg-[#1D4ED8] text-white px-8 py-4 rounded-full font-bold text-lg hover:bg-blue-700 transition-all shadow-lg hover:shadow-xl flex items-center justify-center transform hover:-translate-y-0.5"
+              >
                 Jouer maintenant
                 <ArrowRight className="ml-2 w-5 h-5" />
               </button>
-              <button className="bg-white/80 backdrop-blur-sm border-2 border-[#1D4ED8] text-[#1D4ED8] px-8 py-4 rounded-full font-bold text-lg hover:bg-blue-50 transition-all text-center transform hover:-translate-y-0.5">
+              <button 
+                onClick={() => {
+                  const target = document.querySelector('#about');
+                  if (target) target.scrollIntoView({ behavior: 'smooth' });
+                }}
+                className="bg-white/80 backdrop-blur-sm border-2 border-[#1D4ED8] text-[#1D4ED8] px-8 py-4 rounded-full font-bold text-lg hover:bg-blue-50 transition-all text-center transform hover:-translate-y-0.5"
+              >
                 En savoir plus
               </button>
             </div>

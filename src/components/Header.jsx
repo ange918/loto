@@ -39,7 +39,13 @@ const Header = () => {
                 {link.name}
               </a>
             ))}
-            <button className="bg-[#1D4ED8] text-white px-6 py-2.5 rounded-full font-bold hover:bg-blue-700 transition-all flex items-center">
+            <button 
+              onClick={() => {
+                const target = document.querySelector('#play-now');
+                if (target) target.scrollIntoView({ behavior: 'smooth' });
+              }}
+              className="bg-[#1D4ED8] text-white px-6 py-2.5 rounded-full font-bold hover:bg-blue-700 transition-all flex items-center"
+            >
               Jouer maintenant
               <ChevronRight className="ml-1 w-4 h-4" />
             </button>
@@ -72,7 +78,14 @@ const Header = () => {
               </a>
             ))}
             <div className="px-3 pt-4">
-              <button className="w-full bg-[#1D4ED8] text-white px-6 py-3 rounded-full font-bold hover:bg-blue-700 transition-all text-center">
+              <button 
+                onClick={() => {
+                  setIsOpen(false);
+                  const target = document.querySelector('#play-now');
+                  if (target) target.scrollIntoView({ behavior: 'smooth' });
+                }}
+                className="w-full bg-[#1D4ED8] text-white px-6 py-3 rounded-full font-bold hover:bg-blue-700 transition-all text-center"
+              >
                 Jouer maintenant
               </button>
             </div>
