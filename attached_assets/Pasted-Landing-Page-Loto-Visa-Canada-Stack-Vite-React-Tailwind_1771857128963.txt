@@ -1,0 +1,289 @@
+Landing Page Loto Visa Canada
+
+(Stack : Vite + React + Tailwind CSS)
+
+Créer une landing page moderne et professionnelle pour une structure organisant un Loto Visa Canada.
+
+⚙️ Stack technique :
+
+Vite + React
+
+Tailwind CSS
+
+Structure en composants réutilisables
+
+Code propre, bien organisé
+
+Responsive mobile-first
+
+Animations légères (Framer Motion ou transitions CSS)
+
+🎨 IDENTITÉ VISUELLE
+
+Style inspiré de SusuNI Lab :
+
+Design épuré
+
+Sections aérées
+
+Typographie bold
+
+UI startup premium
+
+Couleurs contrastées
+
+Effet “tech / international”
+
+Palette :
+
+Bleu nuit : #0B1C2D
+
+Bleu primaire : #1D4ED8
+
+Vert validation : #10B981
+
+Blanc : #FFFFFF
+
+Gris texte : #111827
+
+Boutons :
+
+CTA principal : Bleu plein
+
+CTA secondaire : Outline
+
+Action urgente : Vert
+
+📁 STRUCTURE DES COMPOSANTS
+
+Créer les composants suivants :
+
+Header.jsx
+
+Hero.jsx
+
+About.jsx
+
+HowItWorks.jsx
+
+PlayNow.jsx
+
+Testimonials.jsx
+
+Contact.jsx
+
+Footer.jsx
+
+🧩 STRUCTURE DE LA PAGE
+1️⃣ HEADER (Sticky)
+
+Contenu :
+
+Logo à gauche (Nom de la structure)
+
+Navigation à droite :
+
+Accueil
+
+À propos
+
+Comment ça marche
+
+Témoignages
+
+Contact
+
+Bouton CTA : “Jouer maintenant”
+
+Style :
+
+Fond blanc
+
+Shadow léger
+
+Hover bleu
+
+Menu mobile hamburger
+
+2️⃣ HERO SECTION
+
+Disposition :
+Grid 2 colonnes (texte gauche / image droite)
+
+Titre (H1 large bold) :
+
+“Votre chance d’obtenir un Visa Canada et un emploi”
+
+Sous-titre :
+
+Participez à notre Loto Visa Canada.
+5000 participants.
+Des gagnants sélectionnés pour obtenir un visa et un contrat de travail.
+
+Badges :
+
+✔ Visa Canada
+✔ Emploi garanti
+✔ Processus encadré
+✔ Paiement sécurisé
+
+Boutons :
+
+Jouer maintenant (bleu)
+
+En savoir plus (outline)
+
+Image :
+Illustration moderne Canada / skyline / avion.
+
+3️⃣ ABOUT SECTION
+
+Titre :
+
+“Une opportunité d’immigration structurée”
+
+Texte :
+
+Présentation claire de la structure :
+
+Organisation du loto
+
+Accompagnement administratif
+
+Sélection transparente
+
+Mise en relation employeurs
+
+Disposition :
+2 colonnes avec image professionnelle.
+
+4️⃣ COMMENT ÇA MARCHE
+
+Titre :
+
+“Comment participer ?”
+
+4 cards horizontales avec icônes :
+
+1️⃣ Inscription en ligne
+2️⃣ Paiement des frais (5000)
+3️⃣ Tirage des gagnants
+4️⃣ Démarches visa + intégration emploi
+
+Chaque card :
+
+Icône
+
+Titre bold
+
+Petite description
+
+Mettre en évidence :
+“Participation : 5000”
+
+5️⃣ JOUER MAINTENANT
+
+Fond bleu nuit ou dégradé.
+
+Titre :
+
+“Prêt à tenter votre chance ?”
+
+Bloc paiement :
+
+🇨🇮 Côte d’Ivoire :
+
+Wave
+
+🇧🇯 Bénin :
+
+MTN Moov
+
+Celtis
+
+Carte bancaire optionnelle
+
+Bouton large vert :
+
+“Je participe maintenant”
+
+6️⃣ TÉMOIGNAGES
+
+Cards modernes :
+
+Photo ronde
+
+Nom
+
+Pays
+
+Citation courte
+
+Ombre légère
+Hover subtil
+
+7️⃣ CONTACT
+
+Formulaire :
+
+Nom
+
+Email
+
+Téléphone
+
+Message
+
+À côté :
+
+WhatsApp
+
+Email
+
+Support client
+
+Design minimal, bordures fines.
+
+8️⃣ FOOTER
+
+Fond bleu nuit.
+
+Contenu :
+
+Logo
+
+Liens rapides
+
+Conditions
+
+Politique de confidentialité
+
+Copyright
+
+💎 UX/UI ATTENDU
+
+Animations fade-in au scroll
+
+Boutons arrondis
+
+Micro-interactions
+
+Transitions fluides
+
+Responsive mobile
+
+Code clair et modulaire
+
+📦 BONUS
+
+Ajouter :
+
+Scroll smooth
+
+Meta SEO optimisé
+
+Structure propre dans App.jsx
+
+Utiliser Tailwind container max-w-7xl
+
+Section spacing cohérent (py-20)
