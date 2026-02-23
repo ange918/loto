@@ -17,7 +17,15 @@ const Header = () => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-20">
           <div className="flex-shrink-0 flex items-center">
-            <span className="text-2xl font-bold text-[#0B1C2D]">Loto Visa Canada</span>
+            <div className="flex items-center gap-2">
+              <div className="w-10 h-10 bg-gradient-to-br from-[#1D4ED8] to-[#1E40AF] rounded-lg flex items-center justify-center shadow-md">
+                <span className="text-white font-black text-xl italic leading-none">L</span>
+              </div>
+              <div className="flex flex-col leading-tight">
+                <span className="text-xl font-black text-[#0B1C2D] tracking-tighter">LOTO<span className="text-[#1D4ED8]">VISA</span></span>
+                <span className="text-[10px] font-bold text-gray-500 tracking-[0.2em] uppercase">Canada</span>
+              </div>
+            </div>
           </div>
           
           {/* Desktop Navigation */}
