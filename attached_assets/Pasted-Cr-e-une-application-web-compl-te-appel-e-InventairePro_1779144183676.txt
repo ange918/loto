@@ -1,0 +1,225 @@
+Crée une application web complète appelée "InventairePro" — un outil de comptage d'inventaire terrain pour bars et restaurants au Bénin. L'utilisateur se rend dans les réserves de ses clients et compte les casiers et bouteilles de boissons (bières, sodas, eaux) avec son smartphone.
+
+Stack : React 18 + Vite + TypeScript + Tailwind CSS + Supabase + React Router v6
+
+Design : dark utilitaire — fond #0A0A0A, surfaces #141414 et #1E1E1E, accent vert #00C96B, texte blanc pur. Typographie : Unbounded (titres/labels) + Montserrat (corps). Zéro border-radius arrondi excessif, zéro UI library externe (pas de Shadcn, pas de MUI). Interface pensée pour le pouce sur mobile.
+
+Variables d'environnement (créer le fichier .env à la racine) :
+VITE_SUPABASE_URL=https://mmamvgqsrtxzfkfaamlu.supabase.co
+VITE_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1tYW12Z3FzcnR4emZrZmFhbWx1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkxMTgyNjIsImV4cCI6MjA5NDY5NDI2Mn0.hBq6sEZqyfb3tlAGxLRmhFs1L5ntBYP2oR-_VvZnKsA
+
+---
+
+STRUCTURE DU PROJET
+
+src/
+  lib/
+    supabase.ts         → client Supabase
+    types.ts            → types TypeScript
+  pages/
+    LoginPage.tsx
+    DashboardPage.tsx
+    NouveauClientPage.tsx
+    InventairePage.tsx
+    HistoriquePage.tsx
+  components/
+    Layout.tsx
+    BottomNav.tsx
+    ClientCard.tsx
+    ProduitRow.tsx
+  App.tsx
+  main.tsx
+.env
+vite.config.ts
+tailwind.config.js
+index.html
+
+---
+
+TYPES TypeScript (src/lib/types.ts)
+
+export type Client = {
+  id: string
+  nom: string
+  ville: string | null
+  telephone: string | null
+  created_at: string
+}
+
+export type Produit = {
+  id: string
+  nom: string
+  categorie: string | null
+  bouteilles_casier: number
+  actif: boolean
+}
+
+export type LigneInventaire = {
+  produit_id: string
+  casiers: number
+  bouteilles: number
+}
+
+export type Inventaire = {
+  id: string
+  client_id: string
+  produit_id: string
+  date_inventaire: string
+  casiers: number
+  bouteilles: number
+  commentaire: string | null
+  produits?: Produit
+}
+
+---
+
+CLIENT SUPABASE (src/lib/supabase.ts)
+
+import { createClient } from '@supabase/supabase-js'
+
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
+const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY
+
+export const supabase = createClient(supabaseUrl, supabaseKey)
+
+---
+
+APP.TSX — Routing
+
+Routes :
+- /login → LoginPage (si non authentifié)
+- / → DashboardPage (liste clients)
+- /clients/nouveau → NouveauClientPage
+- /inventaire/:clientId → InventairePage
+- /historique/:clientId → HistoriquePage
+
+Protéger toutes les routes sauf /login. Rediriger vers /login si session absente. Utiliser useEffect + supabase.auth.getSession() pour vérifier la session au montage.
+
+---
+
+PAGE LOGIN (LoginPage.tsx)
+
+Formulaire email + mot de passe. Appel : supabase.auth.signInWithPassword({ email, password })
+Afficher les erreurs sous le formulaire. Bouton "Se connecter" avec état loading. Design centré, logo texte "INVENTAIRE PRO" en Unbounded vert #00C96B en haut. Fond #0A0A0A.
+
+---
+
+PAGE DASHBOARD (DashboardPage.tsx)
+
+Header : "MES CLIENTS" en Unbounded + bouton "+" en haut à droite (navigue vers /clients/nouveau).
+Charger la liste des clients depuis Supabase : supabase.from('clients').select('*').order('nom')
+Afficher chaque client dans un ClientCard.
+
+ClientCard.tsx :
+- Fond #1E1E1E, border-left 3px solid #00C96B
+- Nom du client en Unbounded blanc, ville + téléphone en Montserrat gris
+- Deux boutons : "COMPTER" (→ /inventaire/:id, fond vert #00C96B, texte noir) et "HISTORIQUE" (→ /historique/:id, fond transparent, bordure grise)
+- Si aucun client : message "Aucun client. Ajoutez votre premier client." centré avec icône.
+
+---
+
+PAGE NOUVEAU CLIENT (NouveauClientPage.tsx)
+
+Formulaire : Nom du client (required), Ville, Téléphone.
+Appel : supabase.from('clients').insert({ nom, ville, telephone })
+Après succès, rediriger vers /.
+Bouton retour en haut à gauche (←).
+Labels en Unbounded, inputs fond #1E1E1E bordure #333, focus bordure #00C96B. Bouton "ENREGISTRER" pleine largeur fond vert.
+
+---
+
+PAGE INVENTAIRE (InventairePage.tsx)
+
+Paramètre URL : clientId
+
+Au montage :
+1. Charger le client : supabase.from('clients').select('*').eq('id', clientId).single()
+2. Charger tous les produits actifs : supabase.from('produits').select('*').eq('actif', true).order('categorie').order('nom')
+3. Initialiser un state lignes : Record<string, { casiers: number, bouteilles: number }> avec produit_id comme clé, valeurs à 0
+
+Affichage :
+- Header : nom du client + date du jour (format DD/MM/YYYY) + bouton ← retour
+- Grouper les produits par catégorie (bière, malt, soda, eau)
+- Pour chaque catégorie : titre de section en Unbounded vert #00C96B uppercase + séparateur
+
+ProduitRow.tsx — pour chaque produit :
+- Fond #141414, padding confortable pour les doigts
+- Nom du produit en Unbounded blanc sur une ligne
+- Sous le nom en Montserrat gris : "1 casier = X bouteilles"
+- Deux zones de saisie côte à côte :
+  * Gauche : label "CASIERS" + input number (min=0, clavier numérique : inputMode="numeric")
+  * Droite : label "VOLANTES" + input number (min=0, inputMode="numeric")
+- Inputs : fond #0A0A0A, bordure #333, texte blanc, taille 20px, centré, largeur 80px, hauteur 56px (adapté au pouce)
+- Si casiers > 0 ou bouteilles > 0 : afficher le total calculé en vert : "= X bouteilles"
+
+Bouton "VALIDER L'INVENTAIRE" :
+- Fixé en bas de l'écran, pleine largeur, fond #00C96B, texte noir Unbounded
+- Au clic : filtrer les lignes où casiers > 0 ou bouteilles > 0
+- Si aucune ligne remplie : afficher message d'erreur "Aucune quantité saisie"
+- Sinon : insérer dans Supabase avec upsert (pour gérer les doublons du même jour) :
+
+supabase.from('inventaires').upsert(
+  lignesFiltrées.map(l => ({
+    client_id: clientId,
+    produit_id: l.produit_id,
+    date_inventaire: new Date().toISOString().split('T')[0],
+    casiers: l.casiers,
+    bouteilles: l.bouteilles
+  })),
+  { onConflict: 'client_id,produit_id,date_inventaire' }
+)
+
+Après succès : afficher un message de confirmation "Inventaire sauvegardé ✓" en overlay vert 2 secondes, puis rediriger vers /.
+
+---
+
+PAGE HISTORIQUE (HistoriquePage.tsx)
+
+Paramètre URL : clientId
+
+Charger les inventaires du client groupés par date :
+supabase
+  .from('inventaires')
+  .select('*, produits(nom, bouteilles_casier, categorie)')
+  .eq('client_id', clientId)
+  .order('date_inventaire', { ascending: false })
+
+Afficher par date (la plus récente en premier) :
+- En-tête de date en Unbounded blanc : "Inventaire du DD/MM/YYYY"
+- Pour chaque ligne : nom produit + "X casiers + Y volantes = Z bouteilles" (Z = casiers * bouteilles_casier + bouteilles)
+- Grouper par catégorie à l'intérieur de chaque date
+
+Si aucun historique : "Aucun inventaire enregistré pour ce client."
+
+---
+
+NAVIGATION (BottomNav.tsx)
+
+Barre fixée en bas :
+- Dashboard (icône maison) → /
+- Bouton central "+" circulaire fond vert → /clients/nouveau
+
+---
+
+DÉPENDANCES À INSTALLER
+
+npm install @supabase/supabase-js react-router-dom
+npm install -D tailwindcss postcss autoprefixer @types/react @types/react-dom
+
+Dans index.html, importer les fonts Google :
+<link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@400;600;700&family=Montserrat:wght@400;500;600&display=swap" rel="stylesheet">
+
+Dans tailwind.config.js :
+fontFamily: { unbounded: ['Unbounded', 'sans-serif'], montserrat: ['Montserrat', 'sans-serif'] }
+
+---
+
+POINTS IMPORTANTS
+
+- Tout le texte des labels et titres : font-unbounded
+- Tout le texte de contenu/body : font-montserrat
+- inputMode="numeric" sur tous les champs de quantité pour ouvrir le clavier numérique sur mobile
+- Pas de scroll horizontal, layout 100% mobile-first max-w-md centré sur desktop
+- Les inputs de quantité doivent être larges et hauts (min 56px) pour être facilement cliquables avec le pouce
+- Gestion des états loading et error sur chaque page
+- Ne jamais laisser l'utilisateur sans feedback visuel après une action
