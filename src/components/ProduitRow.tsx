@@ -21,11 +21,10 @@ export default function ProduitRow({ produit, values, onChange }: Props) {
   const casiers_vendus = stock_initial_casiers - casiers
   const bouteilles_vendues = stock_initial_bouteilles - bouteilles
   const total_btl = casiers_vendus * produit.bouteilles_casier + bouteilles_vendues
-  const recette = total_btl * (produit.prix_unitaire || 0)
+  const recette = total_btl * produit.prix_unitaire
 
-  const casiersSaisi = casiers > 0 || bouteilles > 0
-  const showVendus = stock_initial_casiers > 0 && casiersSaisi
-  const showWarning = casiers_vendus < 0 || bouteilles_vendues < 0
+  const showResume = stock_initial_casiers > 0 || stock_initial_bouteilles > 0
+  const showWarning = casiers_vendus < 0
 
   const inputs: { field: Field; label: string }[] = [
     { field: 'stock_initial_casiers', label: 'STOCK INIT. CAS.' },
@@ -56,17 +55,22 @@ export default function ProduitRow({ produit, values, onChange }: Props) {
         ))}
       </div>
 
-      {showVendus && !showWarning && (
-        <p className="font-montserrat text-[#00C96B] text-xs mt-3 font-semibold">
-          Vendus : {casiers_vendus} cas. + {bouteilles_vendues} vol. = {total_btl} btl.
+      {showResume && (
+        <div className="mt-3 space-y-1">
+          <p className="font-montserrat text-[#00C96B] text-xs font-semibold">
+            Vendus : {casiers_vendus} cas. + {bouteilles_vendues} vol. = {total_btl} btl.
+          </p>
           {produit.prix_unitaire > 0 && (
-            <span> → {recette.toLocaleString('fr-FR')} FCFA</span>
+            <p className="font-montserrat text-[#00C96B] text-xs font-semibold">
+              Recette : {recette.toLocaleString('fr-FR')} FCFA
+            </p>
           )}
-        </p>
-      )}
-
-      {showWarning && (
-        <p className="font-montserrat text-red-400 text-xs mt-3">⚠ Vérifier les valeurs</p>
+          {showWarning && (
+            <p className="font-montserrat text-red-400 text-xs">
+              {'⚠ Restant > Initial, vérifier les valeurs'}
+            </p>
+          )}
+        </div>
       )}
     </div>
   )
