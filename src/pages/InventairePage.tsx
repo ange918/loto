@@ -4,7 +4,21 @@ import { supabase } from '../lib/supabase'
 import { Client, Produit } from '../lib/types'
 import ProduitRow from '../components/ProduitRow'
 
-type Lignes = Record<string, { casiers: number; bouteilles: number }>
+type LigneState = {
+  stock_initial_casiers: number
+  stock_initial_bouteilles: number
+  casiers: number
+  bouteilles: number
+}
+
+type Lignes = Record<string, LigneState>
+
+const emptyLigne = (): LigneState => ({
+  stock_initial_casiers: 0,
+  stock_initial_bouteilles: 0,
+  casiers: 0,
+  bouteilles: 0,
+})
 
 function formatDate(d: Date) {
   return d.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' })
@@ -30,26 +44,36 @@ export default function InventairePage() {
       setClient(c)
       setProduits(p || [])
       const init: Lignes = {}
-      ;(p || []).forEach((prod: Produit) => { init[prod.id] = { casiers: 0, bouteilles: 0 } })
+      ;(p || []).forEach((prod: Produit) => { init[prod.id] = emptyLigne() })
       setLignes(init)
       setLoading(false)
     }
     load()
   }, [clientId])
 
-  function handleChange(produitId: string, field: 'casiers' | 'bouteilles', value: number) {
-    setLignes(prev => ({ ...prev, [produitId]: { ...prev[produitId], [field]: value } }))
+  function handleChange(produitId: string, field: keyof LigneState, value: number) {
+    setLignes(prev => ({
+      ...prev,
+      [produitId]: { ...prev[produitId], [field]: value },
+    }))
   }
 
   async function handleValider() {
     const filtered = Object.entries(lignes)
-      .filter(([, v]) => v.casiers > 0 || v.bouteilles > 0)
+      .filter(([, v]) =>
+        v.casiers > 0 ||
+        v.bouteilles > 0 ||
+        v.stock_initial_casiers > 0 ||
+        v.stock_initial_bouteilles > 0
+      )
       .map(([produit_id, v]) => ({
         client_id: clientId!,
         produit_id,
         date_inventaire: new Date().toISOString().split('T')[0],
         casiers: v.casiers,
         bouteilles: v.bouteilles,
+        stock_initial_casiers: v.stock_initial_casiers,
+        stock_initial_bouteilles: v.stock_initial_bouteilles,
       }))
 
     if (filtered.length === 0) {
@@ -107,8 +131,7 @@ export default function InventairePage() {
               <ProduitRow
                 key={p.id}
                 produit={p}
-                casiers={lignes[p.id]?.casiers ?? 0}
-                bouteilles={lignes[p.id]?.bouteilles ?? 0}
+                values={lignes[p.id] ?? emptyLigne()}
                 onChange={(field, val) => handleChange(p.id, field, val)}
               />
             ))}

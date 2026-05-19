@@ -6,6 +6,8 @@ import DashboardPage from './pages/DashboardPage'
 import NouveauClientPage from './pages/NouveauClientPage'
 import InventairePage from './pages/InventairePage'
 import HistoriquePage from './pages/HistoriquePage'
+import ProduitsPage from './pages/ProduitsPage'
+import RecettePage from './pages/RecettePage'
 
 function ProtectedRoute({ children, session }: { children: React.ReactNode; session: boolean | null }) {
   if (session === null) return (
@@ -38,6 +40,8 @@ export default function App() {
         <Route path="/clients/nouveau" element={<ProtectedRoute session={session}><NouveauClientPage /></ProtectedRoute>} />
         <Route path="/inventaire/:clientId" element={<ProtectedRoute session={session}><InventairePage /></ProtectedRoute>} />
         <Route path="/historique/:clientId" element={<ProtectedRoute session={session}><HistoriquePage /></ProtectedRoute>} />
+        <Route path="/produits" element={<ProtectedRoute session={session}><ProduitsPage /></ProtectedRoute>} />
+        <Route path="/recette/:clientId" element={<ProtectedRoute session={session}><RecettePage /></ProtectedRoute>} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>

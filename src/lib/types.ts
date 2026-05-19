@@ -12,12 +12,15 @@ export type Produit = {
   categorie: string | null
   bouteilles_casier: number
   actif: boolean
+  prix_unitaire: number
 }
 
 export type LigneInventaire = {
   produit_id: string
   casiers: number
   bouteilles: number
+  stock_initial_casiers: number
+  stock_initial_bouteilles: number
 }
 
 export type Inventaire = {
@@ -27,6 +30,20 @@ export type Inventaire = {
   date_inventaire: string
   casiers: number
   bouteilles: number
+  stock_initial_casiers: number
+  stock_initial_bouteilles: number
   commentaire: string | null
   produits?: Produit
+}
+
+export type LigneRecette = {
+  produit: Produit
+  stock_initial_casiers: number
+  stock_initial_bouteilles: number
+  stock_final_casiers: number
+  stock_final_bouteilles: number
+  casiers_vendus: number
+  bouteilles_vendues: number
+  total_bouteilles_vendues: number
+  recette: number
 }

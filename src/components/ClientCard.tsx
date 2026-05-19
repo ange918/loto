@@ -16,18 +16,26 @@ export default function ClientCard({ client }: { client: Client }) {
         </p>
       </div>
 
-      <div className="flex gap-3">
+      <div className="flex flex-col gap-2">
+        <div className="flex gap-2">
+          <button
+            onClick={() => navigate(`/inventaire/${client.id}`)}
+            className="flex-1 bg-[#00C96B] text-black font-unbounded text-xs font-bold tracking-wider h-10"
+          >
+            COMPTER
+          </button>
+          <button
+            onClick={() => navigate(`/historique/${client.id}`)}
+            className="flex-1 border border-[#555] text-[#aaa] font-unbounded text-xs tracking-wider h-10"
+          >
+            HISTORIQUE
+          </button>
+        </div>
         <button
-          onClick={() => navigate(`/inventaire/${client.id}`)}
-          className="flex-1 bg-[#00C96B] text-black font-unbounded text-xs font-bold tracking-wider h-10"
+          onClick={() => navigate(`/recette/${client.id}`)}
+          className="w-full bg-[#F59E0B] text-black font-unbounded text-xs font-bold tracking-wider h-10"
         >
-          COMPTER
-        </button>
-        <button
-          onClick={() => navigate(`/historique/${client.id}`)}
-          className="flex-1 border border-[#555] text-[#aaa] font-unbounded text-xs tracking-wider h-10"
-        >
-          HISTORIQUE
+          RECETTE
         </button>
       </div>
     </div>
