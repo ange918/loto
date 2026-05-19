@@ -65,18 +65,25 @@ export default function RecettePage() {
     async function loadRecette() {
       setLoading(true)
       setError(null)
-      const { data, error: err } = await supabase
-        .from('inventaires')
-        .select('*, produits(nom, bouteilles_casier, categorie, prix_unitaire)')
-        .eq('client_id', clientId)
-        .gte('date_inventaire', dateDebut)
-        .lte('date_inventaire', dateFin)
+      const [{ data, error: err }, { data: tarifsData, error: tarifsErr }] = await Promise.all([
+        supabase
+          .from('inventaires')
+          .select('*, produits(nom, bouteilles_casier, categorie)')
+          .eq('client_id', clientId)
+          .gte('date_inventaire', dateDebut)
+          .lte('date_inventaire', dateFin),
+        supabase.from('tarifs').select('*').eq('client_id', clientId),
+      ])
 
-      if (err) {
-        setError(err.message)
+      if (err || tarifsErr) {
+        setError(err?.message || tarifsErr?.message || 'Erreur de chargement')
         setLignes([])
       } else {
-        setLignes(aggregateLignesRecette(data || []))
+        const tarifsMap: Record<string, number> = {}
+        ;(tarifsData || []).forEach(t => {
+          tarifsMap[t.produit_id] = Number(t.prix_unitaire) || 0
+        })
+        setLignes(aggregateLignesRecette(data || [], tarifsMap))
       }
       setLoading(false)
     }

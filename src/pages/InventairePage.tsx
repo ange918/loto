@@ -30,6 +30,7 @@ export default function InventairePage() {
   const [client, setClient] = useState<Client | null>(null)
   const [produits, setProduits] = useState<Produit[]>([])
   const [lignes, setLignes] = useState<Lignes>({})
+  const [tarifs, setTarifs] = useState<Record<string, number>>({})
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -37,15 +38,22 @@ export default function InventairePage() {
 
   useEffect(() => {
     async function load() {
-      const [{ data: c }, { data: p }] = await Promise.all([
+      const [{ data: c }, { data: p }, { data: tarifsData }] = await Promise.all([
         supabase.from('clients').select('*').eq('id', clientId!).single(),
         supabase.from('produits').select('*').eq('actif', true).order('categorie').order('nom'),
+        supabase.from('tarifs').select('*').eq('client_id', clientId!),
       ])
       setClient(c)
       setProduits(p || [])
       const init: Lignes = {}
       ;(p || []).forEach((prod: Produit) => { init[prod.id] = emptyLigne() })
       setLignes(init)
+      const tarifsInit: Record<string, number> = {}
+      ;(p || []).forEach((prod: Produit) => { tarifsInit[prod.id] = 0 })
+      ;(tarifsData || []).forEach(t => {
+        tarifsInit[t.produit_id] = Number(t.prix_unitaire) || 0
+      })
+      setTarifs(tarifsInit)
       setLoading(false)
     }
     load()
@@ -56,6 +64,17 @@ export default function InventairePage() {
       ...prev,
       [produitId]: { ...prev[produitId], [field]: value },
     }))
+  }
+
+  function handlePrixChange(produitId: string, value: number) {
+    setTarifs(prev => ({ ...prev, [produitId]: value }))
+  }
+
+  async function saveTarif(produitId: string, prix_unitaire: number) {
+    await supabase.from('tarifs').upsert(
+      { client_id: clientId!, produit_id: produitId, prix_unitaire },
+      { onConflict: 'client_id,produit_id' }
+    )
   }
 
   async function handleValider() {
@@ -132,7 +151,10 @@ export default function InventairePage() {
                 key={p.id}
                 produit={p}
                 values={lignes[p.id] ?? emptyLigne()}
+                prixUnitaire={tarifs[p.id] ?? 0}
                 onChange={(field, val) => handleChange(p.id, field, val)}
+                onPrixChange={val => handlePrixChange(p.id, val)}
+                onPrixSave={val => saveTarif(p.id, val)}
               />
             ))}
           </div>

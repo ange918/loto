@@ -13,7 +13,10 @@ export function computeVentes(
   return { casiers_vendus, bouteilles_vendues, total_bouteilles_vendues }
 }
 
-export function aggregateLignesRecette(inventaires: Inventaire[]): LigneRecette[] {
+export function aggregateLignesRecette(
+  inventaires: Inventaire[],
+  tarifs: Record<string, number> = {}
+): LigneRecette[] {
   const map = new Map<string, LigneRecette>()
 
   for (const inv of inventaires) {
@@ -33,7 +36,7 @@ export function aggregateLignesRecette(inventaires: Inventaire[]): LigneRecette[
       produit.bouteilles_casier
     )
 
-    const prix = Number(produit.prix_unitaire) || 0
+    const prix = Number(tarifs[inv.produit_id] ?? produit.prix_unitaire) || 0
     const recette = prix > 0 ? total_bouteilles_vendues * prix : 0
 
     const existing = map.get(inv.produit_id)

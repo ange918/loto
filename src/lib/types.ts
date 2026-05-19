@@ -1,3 +1,10 @@
+export type Tarif = {
+  id: string
+  client_id: string
+  produit_id: string
+  prix_unitaire: number
+}
+
 export type Client = {
   id: string
   nom: string
