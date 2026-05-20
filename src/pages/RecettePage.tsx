@@ -3,8 +3,14 @@ import { useParams, useNavigate } from 'react-router-dom'
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
 import { supabase } from '../lib/supabase'
-import { Client, LigneRecette } from '../lib/types'
-import { aggregateLignesRecette, getMonthStart, getWeekStart, toIsoDate } from '../lib/recette'
+import { Client, Inventaire, Tarif } from '../lib/types'
+import {
+  calculerInventaire,
+  formaterFCFA,
+  type LigneInventaire,
+  type ResultatInventaire,
+} from '../lib/calcul'
+import { getMonthStart, getWeekStart, toIsoDate } from '../lib/recette'
 
 const CATEGORIES_ORDER = ['bière', 'malt', 'soda', 'eau']
 
@@ -26,11 +32,49 @@ function formatDisplayDate(iso: string) {
 
 type PeriodPreset = 'week' | 'month' | 'custom'
 
+type InventaireAvecProduit = Inventaire & {
+  produits: { nom: string; bouteilles_casier: number; categorie: string | null }
+}
+
+function buildResultat(
+  inventaires: InventaireAvecProduit[],
+  tarifs: Tarif[]
+): ResultatInventaire {
+  const agg = new Map<string, LigneInventaire>()
+
+  for (const inv of inventaires) {
+    const tarif = tarifs.find(t => t.produit_id === inv.produit_id)
+    if (!tarif || tarif.prix_casier <= 0 || !inv.produits) continue
+
+    const casiers_vendus = (inv.stock_initial_casiers ?? 0) - (inv.casiers ?? 0)
+    const bouteilles_vendues = (inv.stock_initial_bouteilles ?? 0) - (inv.bouteilles ?? 0)
+
+    if (casiers_vendus === 0 && bouteilles_vendues === 0) continue
+
+    const existing = agg.get(inv.produit_id)
+    if (existing) {
+      existing.nombre_casiers += casiers_vendus
+      existing.bouteilles_unites += bouteilles_vendues
+    } else {
+      agg.set(inv.produit_id, {
+        nom: inv.produits.nom,
+        categorie: inv.produits.categorie ?? '',
+        nombre_casiers: casiers_vendus,
+        bouteilles_unites: bouteilles_vendues,
+        prix_casier: Number(tarif.prix_casier) || 0,
+        bouteilles_par_casier: inv.produits.bouteilles_casier,
+      })
+    }
+  }
+
+  return calculerInventaire([...agg.values()])
+}
+
 export default function RecettePage() {
   const { clientId } = useParams<{ clientId: string }>()
   const navigate = useNavigate()
   const [client, setClient] = useState<Client | null>(null)
-  const [lignes, setLignes] = useState<LigneRecette[]>([])
+  const [resultat, setResultat] = useState<ResultatInventaire>({ lignes: [], total_general: 0 })
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [preset, setPreset] = useState<PeriodPreset>('week')
@@ -77,27 +121,24 @@ export default function RecettePage() {
 
       if (err || tarifsErr) {
         setError(err?.message || tarifsErr?.message || 'Erreur de chargement')
-        setLignes([])
+        setResultat({ lignes: [], total_general: 0 })
       } else {
-        const tarifsMap: Record<string, number> = {}
-        ;(tarifsData || []).forEach(t => {
-          tarifsMap[t.produit_id] = Number(t.prix_unitaire) || 0
-        })
-        setLignes(aggregateLignesRecette(data || [], tarifsMap))
+        const tarifs = (tarifsData || []).map(t => ({
+          ...t,
+          prix_casier: Number(t.prix_casier) || 0,
+        }))
+        setResultat(buildResultat((data || []) as InventaireAvecProduit[], tarifs))
       }
       setLoading(false)
     }
     loadRecette()
   }, [clientId, dateDebut, dateFin])
 
-  const categories = useMemo(
-    () => sortCategories([...new Set(lignes.map(l => l.produit.categorie || 'Autres'))]),
-    [lignes]
-  )
+  const { lignes: resultats, total_general } = resultat
 
-  const totalGeneral = useMemo(
-    () => lignes.filter(l => l.produit.prix_unitaire > 0).reduce((s, l) => s + l.recette, 0),
-    [lignes]
+  const categories = useMemo(
+    () => sortCategories([...new Set(resultats.map(l => l.categorie || 'Autres'))]),
+    [resultats]
   )
 
   function exportPDF() {
@@ -112,15 +153,17 @@ export default function RecettePage() {
 
     autoTable(doc, {
       startY: 55,
-      head: [['Produit', 'Catégorie', 'Qté vendue (btl)', 'Prix unit. (FCFA)', 'Recette (FCFA)']],
-      body: lignes.map(l => [
-        l.produit.nom,
-        l.produit.categorie ?? '',
-        String(l.total_bouteilles_vendues),
-        l.produit.prix_unitaire > 0 ? l.produit.prix_unitaire.toLocaleString('fr-FR') : '—',
-        l.produit.prix_unitaire > 0 ? l.recette.toLocaleString('fr-FR') : '—',
+      head: [['Produit', 'Catégorie', 'Vendus (cas.)', 'Volantes', 'Val. casiers', 'Val. volantes', 'Total']],
+      body: resultats.map(l => [
+        l.nom,
+        l.categorie,
+        String(l.nombre_casiers),
+        String(l.bouteilles_unites),
+        formaterFCFA(l.valeur_casiers),
+        formaterFCFA(l.valeur_bouteilles),
+        formaterFCFA(l.valeur_totale),
       ]),
-      foot: [['', '', '', 'TOTAL', totalGeneral.toLocaleString('fr-FR') + ' FCFA']],
+      foot: [['', '', '', '', '', 'TOTAL', formaterFCFA(total_general)]],
       headStyles: { fillColor: [0, 201, 107] },
       footStyles: { fillColor: [30, 30, 30], textColor: [0, 201, 107], fontStyle: 'bold' },
     })
@@ -199,19 +242,17 @@ export default function RecettePage() {
         <p className="font-montserrat text-red-400 text-sm px-4 pt-8">{error}</p>
       )}
 
-      {!loading && !error && lignes.length === 0 && (
+      {!loading && !error && resultats.length === 0 && (
         <p className="font-montserrat text-[#555] text-sm text-center px-8 pt-16">
           Aucune vente sur cette période.
         </p>
       )}
 
-      {!loading && lignes.length > 0 && (
+      {!loading && resultats.length > 0 && (
         <>
           {categories.map(cat => {
-            const catLignes = lignes.filter(l => (l.produit.categorie || 'Autres') === cat)
-            const totalCat = catLignes
-              .filter(l => l.produit.prix_unitaire > 0)
-              .reduce((s, l) => s + l.recette, 0)
+            const catLignes = resultats.filter(l => (l.categorie || 'Autres') === cat)
+            const totalCat = catLignes.reduce((s, l) => s + l.valeur_totale, 0)
 
             return (
               <div key={cat} className="mb-4">
@@ -219,64 +260,55 @@ export default function RecettePage() {
                   <p className="font-unbounded text-[#00C96B] text-xs tracking-widest uppercase">{cat}</p>
                 </div>
 
-                <div className="px-4 py-2 grid grid-cols-[1fr_auto_auto_auto] gap-2 border-b border-[#1E1E1E]">
-                  <span className="font-unbounded text-[#666] text-[8px]">PRODUIT</span>
-                  <span className="font-unbounded text-[#666] text-[8px] text-right">VENDUS</span>
-                  <span className="font-unbounded text-[#666] text-[8px] text-right">P.U.</span>
-                  <span className="font-unbounded text-[#666] text-[8px] text-right">RECETTE</span>
+                <div className="px-2 py-2 grid grid-cols-[1fr_36px_36px_52px_52px_56px] gap-1 border-b border-[#1E1E1E]">
+                  <span className="font-unbounded text-[#666] text-[7px]">PRODUIT</span>
+                  <span className="font-unbounded text-[#666] text-[7px] text-right">CAS.</span>
+                  <span className="font-unbounded text-[#666] text-[7px] text-right">VOL.</span>
+                  <span className="font-unbounded text-[#666] text-[7px] text-right">V.CAS</span>
+                  <span className="font-unbounded text-[#666] text-[7px] text-right">V.VOL</span>
+                  <span className="font-unbounded text-[#666] text-[7px] text-right">TOTAL</span>
                 </div>
 
-                {catLignes.map(l => {
-                  const sansPrix = !l.produit.prix_unitaire || l.produit.prix_unitaire <= 0
-                  return (
-                    <div
-                      key={l.produit.id}
-                      className={`px-4 py-3 border-b border-[#141414] grid grid-cols-[1fr_auto_auto_auto] gap-2 items-center ${
-                        sansPrix ? 'opacity-60' : ''
-                      }`}
-                    >
-                      <div>
-                        <p className={`font-unbounded text-xs ${sansPrix ? 'text-[#888]' : 'text-white'}`}>
-                          {l.produit.nom}
-                        </p>
-                        {sansPrix && (
-                          <p className="font-montserrat text-[#666] text-[10px]">Prix non défini</p>
-                        )}
-                      </div>
-                      <p className="font-montserrat text-xs text-[#aaa] text-right">
-                        {l.total_bouteilles_vendues} btl
-                      </p>
-                      <p className="font-montserrat text-xs text-[#aaa] text-right">
-                        {sansPrix ? '—' : l.produit.prix_unitaire.toLocaleString('fr-FR')}
-                      </p>
-                      <p className={`font-montserrat text-xs text-right font-semibold ${sansPrix ? 'text-[#666]' : 'text-[#00C96B]'}`}>
-                        {sansPrix ? '—' : l.recette.toLocaleString('fr-FR')}
-                      </p>
-                    </div>
-                  )
-                })}
+                {catLignes.map(l => (
+                  <div
+                    key={`${l.nom}-${l.categorie}`}
+                    className="px-2 py-3 border-b border-[#141414] grid grid-cols-[1fr_36px_36px_52px_52px_56px] gap-1 items-start"
+                  >
+                    <p className="font-unbounded text-white text-[10px] leading-tight">{l.nom}</p>
+                    <p className="font-montserrat text-[10px] text-[#aaa] text-right">{l.nombre_casiers}</p>
+                    <p className="font-montserrat text-[10px] text-[#aaa] text-right">{l.bouteilles_unites}</p>
+                    <p className="font-montserrat text-[9px] text-[#888] text-right leading-tight">
+                      {l.valeur_casiers.toLocaleString('fr-FR')}
+                    </p>
+                    <p className="font-montserrat text-[9px] text-[#888] text-right leading-tight">
+                      {l.valeur_bouteilles.toLocaleString('fr-FR')}
+                    </p>
+                    <p className="font-montserrat text-[10px] text-[#00C96B] text-right font-semibold leading-tight">
+                      {l.valeur_totale.toLocaleString('fr-FR')}
+                    </p>
+                  </div>
+                ))}
 
                 <div className="px-4 py-3 flex justify-between items-center bg-[#1E1E1E]">
                   <span className="font-unbounded text-[#888] text-xs">Total {cat}</span>
                   <span className="font-montserrat text-[#00C96B] text-sm font-semibold">
-                    {totalCat.toLocaleString('fr-FR')} FCFA
+                    {formaterFCFA(totalCat)}
                   </span>
                 </div>
               </div>
             )
           })}
 
-          <div className="px-4 py-4 mx-4 mb-4 bg-[#141414] border border-[#00C96B]/30 flex justify-between items-center">
-            <span className="font-unbounded text-white text-sm font-bold">TOTAL GÉNÉRAL</span>
-            <span className="font-unbounded text-[#00C96B] text-lg font-bold">
-              {totalGeneral.toLocaleString('fr-FR')} FCFA
-            </span>
+          <div className="px-4 py-4 mx-4 mb-4 bg-[#141414] border border-[#00C96B]/30">
+            <p className="font-unbounded text-[#00C96B] text-sm font-bold text-center">
+              RECETTE TOTALE : {formaterFCFA(total_general)}
+            </p>
           </div>
 
           <div className="px-4 pb-8">
             <button
               onClick={exportPDF}
-              disabled={!client || lignes.length === 0}
+              disabled={!client || resultats.length === 0}
               className="w-full bg-[#00C96B] text-black font-unbounded font-bold text-sm tracking-wider min-h-[56px] disabled:opacity-40"
             >
               EXPORTER EN PDF

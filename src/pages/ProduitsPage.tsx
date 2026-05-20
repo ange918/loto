@@ -55,7 +55,7 @@ export default function ProduitsPage() {
   return (
     <Layout>
       <div className="sticky top-0 bg-[#0A0A0A] z-10 flex items-center px-4 h-14 border-b border-[#1E1E1E]">
-        <h1 className="font-unbounded text-white text-sm font-bold tracking-wider">CATALOGUE PRIX</h1>
+        <h1 className="font-unbounded text-white text-sm font-bold tracking-wider">CATALOGUE — PRIX CASIER</h1>
       </div>
 
       {loading && (
@@ -136,7 +136,7 @@ function ProduitPrixRow({
           onChange={e => setPrix(e.target.value)}
           onBlur={() => onSave(produit.id, prixNum)}
           disabled={saving}
-          placeholder="0"
+          placeholder="Ex: 7000"
           className="w-full min-h-[56px] bg-[#0A0A0A] border border-[#333] focus:border-[#00C96B] text-white text-lg pl-4 pr-16 outline-none font-montserrat font-semibold transition-colors disabled:opacity-50"
         />
         <span className="absolute right-4 top-1/2 -translate-y-1/2 font-unbounded text-[#666] text-xs">

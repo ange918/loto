@@ -51,7 +51,7 @@ export default function InventairePage() {
       const tarifsInit: Record<string, number> = {}
       ;(p || []).forEach((prod: Produit) => { tarifsInit[prod.id] = 0 })
       ;(tarifsData || []).forEach(t => {
-        tarifsInit[t.produit_id] = Number(t.prix_unitaire) || 0
+        tarifsInit[t.produit_id] = Number(t.prix_casier) || 0
       })
       setTarifs(tarifsInit)
       setLoading(false)
@@ -70,9 +70,9 @@ export default function InventairePage() {
     setTarifs(prev => ({ ...prev, [produitId]: value }))
   }
 
-  async function saveTarif(produitId: string, prix_unitaire: number) {
+  async function saveTarif(produitId: string, prix_casier: number) {
     await supabase.from('tarifs').upsert(
-      { client_id: clientId!, produit_id: produitId, prix_unitaire },
+      { client_id: clientId!, produit_id: produitId, prix_casier },
       { onConflict: 'client_id,produit_id' }
     )
   }
@@ -151,7 +151,7 @@ export default function InventairePage() {
                 key={p.id}
                 produit={p}
                 values={lignes[p.id] ?? emptyLigne()}
-                prixUnitaire={tarifs[p.id] ?? 0}
+                prixCasier={tarifs[p.id] ?? 0}
                 onChange={(field, val) => handleChange(p.id, field, val)}
                 onPrixChange={val => handlePrixChange(p.id, val)}
                 onPrixSave={val => saveTarif(p.id, val)}

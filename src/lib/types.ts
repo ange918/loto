@@ -2,7 +2,7 @@ export type Tarif = {
   id: string
   client_id: string
   produit_id: string
-  prix_unitaire: number
+  prix_casier: number
 }
 
 export type Client = {
@@ -43,14 +43,3 @@ export type Inventaire = {
   produits?: Produit
 }
 
-export type LigneRecette = {
-  produit: Produit
-  stock_initial_casiers: number
-  stock_initial_bouteilles: number
-  stock_final_casiers: number
-  stock_final_bouteilles: number
-  casiers_vendus: number
-  bouteilles_vendues: number
-  total_bouteilles_vendues: number
-  recette: number
-}

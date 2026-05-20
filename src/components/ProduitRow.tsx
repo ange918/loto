@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Produit } from '../lib/types'
+import { calculerValeurStock, formaterFCFA } from '../lib/calcul'
 
 type LigneValues = {
   stock_initial_casiers: number
@@ -13,7 +14,7 @@ type Field = keyof LigneValues
 type Props = {
   produit: Produit
   values: LigneValues
-  prixUnitaire: number
+  prixCasier: number
   onChange: (field: Field, value: number) => void
   onPrixChange: (value: number) => void
   onPrixSave: (value: number) => Promise<void>
@@ -22,7 +23,7 @@ type Props = {
 export default function ProduitRow({
   produit,
   values,
-  prixUnitaire,
+  prixCasier,
   onChange,
   onPrixChange,
   onPrixSave,
@@ -32,8 +33,8 @@ export default function ProduitRow({
   const [prixSaved, setPrixSaved] = useState(false)
 
   useEffect(() => {
-    setPrixInput(prixUnitaire > 0 ? String(prixUnitaire) : '')
-  }, [prixUnitaire])
+    setPrixInput(prixCasier > 0 ? String(prixCasier) : '')
+  }, [prixCasier])
 
   useEffect(() => {
     if (!prixSaved) return
@@ -43,11 +44,18 @@ export default function ProduitRow({
 
   const casiers_vendus = stock_initial_casiers - casiers
   const bouteilles_vendues = stock_initial_bouteilles - bouteilles
-  const total_btl = casiers_vendus * produit.bouteilles_casier + bouteilles_vendues
-  const recette = total_btl * prixUnitaire
-
-  const showResume = stock_initial_casiers > 0
   const showWarning = casiers_vendus < 0
+  const showDetail = stock_initial_casiers > 0
+
+  const result =
+    prixCasier > 0 && showDetail
+      ? calculerValeurStock(
+          casiers_vendus,
+          bouteilles_vendues,
+          prixCasier,
+          produit.bouteilles_casier
+        )
+      : null
 
   const inputs: { field: Field; label: string }[] = [
     { field: 'stock_initial_casiers', label: 'STOCK INIT. CAS.' },
@@ -87,7 +95,7 @@ export default function ProduitRow({
 
       <div className="mt-3">
         <label className="font-unbounded text-[#888] text-[8px] tracking-wider block mb-1">
-          PRIX UNIT. (FCFA)
+          PRIX CASIER (FCFA)
         </label>
         <div className="relative">
           <input
@@ -100,7 +108,7 @@ export default function ProduitRow({
               onPrixChange(parseFloat(e.target.value) || 0)
             }}
             onBlur={handlePrixBlur}
-            placeholder="0"
+            placeholder="Ex: 7000"
             className="w-full h-12 bg-[#0A0A0A] border border-[#333] focus:border-[#00C96B] text-white text-base pl-4 pr-14 outline-none font-montserrat font-semibold transition-colors"
           />
           <span className="absolute right-4 top-1/2 -translate-y-1/2 font-unbounded text-[#666] text-xs">
@@ -112,24 +120,33 @@ export default function ProduitRow({
         )}
       </div>
 
-      {showResume && (
-        <div className="mt-3 space-y-1">
-          <p className="font-montserrat text-[#00C96B] text-xs font-semibold">
-            Vendus : {casiers_vendus} cas. + {bouteilles_vendues} vol. = {total_btl} btl.
-          </p>
-          {prixUnitaire > 0 ? (
-            <p className="font-montserrat text-[#00C96B] text-xs font-bold">
-              Recette : {recette.toLocaleString('fr-FR')} FCFA
-            </p>
-          ) : (
-            <p className="font-montserrat text-[#666] text-xs">
-              Entrez un prix pour voir la recette
-            </p>
-          )}
+      {showDetail && (
+        <div className="mt-3">
           {showWarning && (
-            <p className="font-montserrat text-red-400 text-xs">
+            <p className="font-montserrat text-red-400 text-xs mb-2">
               ⚠ Restant supérieur au stock initial
             </p>
+          )}
+          {prixCasier === 0 && (
+            <p className="font-montserrat text-[#666] text-xs">
+              Entrez le prix du casier pour voir la valeur
+            </p>
+          )}
+          {result && (
+            <div
+              className="bg-[#1E1E1E] p-3 space-y-1 font-montserrat text-xs text-[#aaa]"
+              style={{ borderLeft: '3px solid #00C96B' }}
+            >
+              <p className="text-[#00C96B] font-semibold">
+                Vendus : {casiers_vendus} cas. + {bouteilles_vendues} vol.
+              </p>
+              <p>Valeur casiers : {formaterFCFA(result.valeur_casiers)}</p>
+              <p>Valeur volantes : {formaterFCFA(result.valeur_bouteilles)}</p>
+              <p className="text-[#555]">─────────────────────────────</p>
+              <p className="font-unbounded text-[#00C96B] font-bold text-sm">
+                TOTAL : {formaterFCFA(result.valeur_totale)}
+              </p>
+            </div>
           )}
         </div>
       )}
