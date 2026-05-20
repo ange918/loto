@@ -1,58 +1,43 @@
-export interface ResultatCalcStock {
-  valeur_casiers: number
-  valeur_bouteilles: number
-  valeur_totale: number
-  prix_unitaire: number
+export interface ResultatCalcVente {
+  total_btl_initial: number
+  total_btl_restant: number
+  bouteilles_vendues: number
+  prix_bouteille: number
+  valeur_stock_restant: number
+  recette: number
 }
 
-export function calculerValeurStock(
-  nombre_casiers: number,
-  bouteilles_unites: number,
+export function calculerRecette(
+  stock_init_casiers: number,
+  stock_init_vol: number,
+  restant_casiers: number,
+  restant_vol: number,
   prix_casier: number,
   bouteilles_par_casier: number = 24
-): ResultatCalcStock {
-  const prix_unitaire = prix_casier / bouteilles_par_casier
-  const valeur_casiers = nombre_casiers * prix_casier
-  const valeur_bouteilles = Math.round(prix_unitaire * bouteilles_unites)
-  const valeur_totale = valeur_casiers + valeur_bouteilles
+): ResultatCalcVente {
+  const total_btl_initial = stock_init_casiers * bouteilles_par_casier + stock_init_vol
+  const total_btl_restant = restant_casiers * bouteilles_par_casier + restant_vol
+  const bouteilles_vendues = total_btl_initial - total_btl_restant
+  const prix_bouteille = prix_casier / bouteilles_par_casier
+  const recette = Math.round(bouteilles_vendues * prix_bouteille)
+  const valeur_stock_restant = Math.round(total_btl_restant * prix_bouteille)
 
   return {
-    valeur_casiers,
-    valeur_bouteilles,
-    valeur_totale,
-    prix_unitaire: Math.round(prix_unitaire * 100) / 100,
+    total_btl_initial,
+    total_btl_restant,
+    bouteilles_vendues,
+    prix_bouteille: Math.round(prix_bouteille * 100) / 100,
+    valeur_stock_restant,
+    recette,
   }
 }
 
-export interface LigneInventaire {
+export function formaterFCFA(montant: number): string {
+  return montant.toLocaleString('fr-FR') + ' FCFA'
+}
+
+export type LigneRecetteCalc = {
   nom: string
   categorie: string
-  nombre_casiers: number
-  bouteilles_unites: number
-  prix_casier: number
-  bouteilles_par_casier: number
-}
-
-export interface ResultatInventaire {
-  lignes: (LigneInventaire & ResultatCalcStock)[]
-  total_general: number
-}
-
-export function calculerInventaire(produits: LigneInventaire[]): ResultatInventaire {
-  let total_general = 0
-  const lignes = produits.map(p => {
-    const calc = calculerValeurStock(
-      p.nombre_casiers,
-      p.bouteilles_unites,
-      p.prix_casier,
-      p.bouteilles_par_casier
-    )
-    total_general += calc.valeur_totale
-    return { ...p, ...calc }
-  })
-  return { lignes, total_general }
-}
-
-export function formaterFCFA(montant: number): string {
-  return Math.max(0, montant).toLocaleString('fr-FR') + ' FCFA'
-}
+  date: string
+} & ResultatCalcVente

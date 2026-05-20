@@ -4,12 +4,7 @@ import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
 import { supabase } from '../lib/supabase'
 import { Client, Inventaire, Tarif } from '../lib/types'
-import {
-  calculerInventaire,
-  formaterFCFA,
-  type LigneInventaire,
-  type ResultatInventaire,
-} from '../lib/calcul'
+import { calculerRecette, formaterFCFA, type LigneRecetteCalc } from '../lib/calcul'
 import { getMonthStart, getWeekStart, toIsoDate } from '../lib/recette'
 
 const CATEGORIES_ORDER = ['bière', 'malt', 'soda', 'eau']
@@ -36,50 +31,47 @@ type InventaireAvecProduit = Inventaire & {
   produits: { nom: string; bouteilles_casier: number; categorie: string | null }
 }
 
-function buildResultat(
-  inventaires: InventaireAvecProduit[],
-  tarifs: Tarif[]
-): ResultatInventaire {
-  const agg = new Map<string, LigneInventaire>()
-
-  for (const inv of inventaires) {
-    const tarif = tarifs.find(t => t.produit_id === inv.produit_id)
-    if (!tarif || tarif.prix_casier <= 0 || !inv.produits) continue
-
-    const casiers_vendus = (inv.stock_initial_casiers ?? 0) - (inv.casiers ?? 0)
-    const bouteilles_vendues = (inv.stock_initial_bouteilles ?? 0) - (inv.bouteilles ?? 0)
-
-    if (casiers_vendus === 0 && bouteilles_vendues === 0) continue
-
-    const existing = agg.get(inv.produit_id)
-    if (existing) {
-      existing.nombre_casiers += casiers_vendus
-      existing.bouteilles_unites += bouteilles_vendues
-    } else {
-      agg.set(inv.produit_id, {
-        nom: inv.produits.nom,
-        categorie: inv.produits.categorie ?? '',
-        nombre_casiers: casiers_vendus,
-        bouteilles_unites: bouteilles_vendues,
-        prix_casier: Number(tarif.prix_casier) || 0,
-        bouteilles_par_casier: inv.produits.bouteilles_casier,
-      })
-    }
-  }
-
-  return calculerInventaire([...agg.values()])
+function buildLignes(inventaires: InventaireAvecProduit[], tarifs: Tarif[]): LigneRecetteCalc[] {
+  return inventaires
+    .filter(inv => {
+      const tarif = tarifs.find(t => t.produit_id === inv.produit_id)
+      return tarif && tarif.prix_casier > 0 && inv.stock_initial_casiers > 0 && inv.produits
+    })
+    .map(inv => {
+      const tarif = tarifs.find(t => t.produit_id === inv.produit_id)!
+      const result = calculerRecette(
+        inv.stock_initial_casiers ?? 0,
+        inv.stock_initial_bouteilles ?? 0,
+        inv.casiers ?? 0,
+        inv.bouteilles ?? 0,
+        Number(tarif.prix_casier) || 0,
+        inv.produits!.bouteilles_casier
+      )
+      return {
+        nom: inv.produits!.nom,
+        categorie: inv.produits!.categorie ?? '',
+        date: inv.date_inventaire,
+        ...result,
+      }
+    })
+    .filter(l => l.bouteilles_vendues > 0)
 }
 
 export default function RecettePage() {
   const { clientId } = useParams<{ clientId: string }>()
   const navigate = useNavigate()
   const [client, setClient] = useState<Client | null>(null)
-  const [resultat, setResultat] = useState<ResultatInventaire>({ lignes: [], total_general: 0 })
+  const [lignes, setLignes] = useState<LigneRecetteCalc[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [preset, setPreset] = useState<PeriodPreset>('week')
   const [dateDebut, setDateDebut] = useState(toIsoDate(getWeekStart()))
   const [dateFin, setDateFin] = useState(toIsoDate(new Date()))
+
+  const total_general = useMemo(
+    () => lignes.reduce((sum, l) => sum + l.recette, 0),
+    [lignes]
+  )
 
   function applyPreset(p: 'week' | 'month') {
     setPreset(p)
@@ -121,24 +113,22 @@ export default function RecettePage() {
 
       if (err || tarifsErr) {
         setError(err?.message || tarifsErr?.message || 'Erreur de chargement')
-        setResultat({ lignes: [], total_general: 0 })
+        setLignes([])
       } else {
         const tarifs = (tarifsData || []).map(t => ({
           ...t,
           prix_casier: Number(t.prix_casier) || 0,
         }))
-        setResultat(buildResultat((data || []) as InventaireAvecProduit[], tarifs))
+        setLignes(buildLignes((data || []) as InventaireAvecProduit[], tarifs))
       }
       setLoading(false)
     }
     loadRecette()
   }, [clientId, dateDebut, dateFin])
 
-  const { lignes: resultats, total_general } = resultat
-
   const categories = useMemo(
-    () => sortCategories([...new Set(resultats.map(l => l.categorie || 'Autres'))]),
-    [resultats]
+    () => sortCategories([...new Set(lignes.map(l => l.categorie || 'Autres'))]),
+    [lignes]
   )
 
   function exportPDF() {
@@ -153,15 +143,15 @@ export default function RecettePage() {
 
     autoTable(doc, {
       startY: 55,
-      head: [['Produit', 'Catégorie', 'Vendus (cas.)', 'Volantes', 'Val. casiers', 'Val. volantes', 'Total']],
-      body: resultats.map(l => [
+      head: [['Produit', 'Catégorie', 'Init (btl)', 'Restant (btl)', 'Vendues (btl)', 'Prix/btl', 'Recette']],
+      body: lignes.map(l => [
         l.nom,
         l.categorie,
-        String(l.nombre_casiers),
-        String(l.bouteilles_unites),
-        formaterFCFA(l.valeur_casiers),
-        formaterFCFA(l.valeur_bouteilles),
-        formaterFCFA(l.valeur_totale),
+        String(l.total_btl_initial),
+        String(l.total_btl_restant),
+        String(l.bouteilles_vendues),
+        l.prix_bouteille.toLocaleString('fr-FR') + ' FCFA',
+        formaterFCFA(l.recette),
       ]),
       foot: [['', '', '', '', '', 'TOTAL', formaterFCFA(total_general)]],
       headStyles: { fillColor: [0, 201, 107] },
@@ -242,17 +232,17 @@ export default function RecettePage() {
         <p className="font-montserrat text-red-400 text-sm px-4 pt-8">{error}</p>
       )}
 
-      {!loading && !error && resultats.length === 0 && (
+      {!loading && !error && lignes.length === 0 && (
         <p className="font-montserrat text-[#555] text-sm text-center px-8 pt-16">
           Aucune vente sur cette période.
         </p>
       )}
 
-      {!loading && resultats.length > 0 && (
+      {!loading && lignes.length > 0 && (
         <>
           {categories.map(cat => {
-            const catLignes = resultats.filter(l => (l.categorie || 'Autres') === cat)
-            const totalCat = catLignes.reduce((s, l) => s + l.valeur_totale, 0)
+            const catLignes = lignes.filter(l => (l.categorie || 'Autres') === cat)
+            const totalCat = catLignes.reduce((s, l) => s + l.recette, 0)
 
             return (
               <div key={cat} className="mb-4">
@@ -260,31 +250,29 @@ export default function RecettePage() {
                   <p className="font-unbounded text-[#00C96B] text-xs tracking-widest uppercase">{cat}</p>
                 </div>
 
-                <div className="px-2 py-2 grid grid-cols-[1fr_36px_36px_52px_52px_56px] gap-1 border-b border-[#1E1E1E]">
+                <div className="px-2 py-2 grid grid-cols-[1fr_40px_40px_44px_48px_56px] gap-1 border-b border-[#1E1E1E]">
                   <span className="font-unbounded text-[#666] text-[7px]">PRODUIT</span>
-                  <span className="font-unbounded text-[#666] text-[7px] text-right">CAS.</span>
-                  <span className="font-unbounded text-[#666] text-[7px] text-right">VOL.</span>
-                  <span className="font-unbounded text-[#666] text-[7px] text-right">V.CAS</span>
-                  <span className="font-unbounded text-[#666] text-[7px] text-right">V.VOL</span>
-                  <span className="font-unbounded text-[#666] text-[7px] text-right">TOTAL</span>
+                  <span className="font-unbounded text-[#666] text-[7px] text-right">INIT</span>
+                  <span className="font-unbounded text-[#666] text-[7px] text-right">REST.</span>
+                  <span className="font-unbounded text-[#666] text-[7px] text-right">VEND.</span>
+                  <span className="font-unbounded text-[#666] text-[7px] text-right">P/BTL</span>
+                  <span className="font-unbounded text-[#666] text-[7px] text-right">REC.</span>
                 </div>
 
-                {catLignes.map(l => (
+                {catLignes.map((l, i) => (
                   <div
-                    key={`${l.nom}-${l.categorie}`}
-                    className="px-2 py-3 border-b border-[#141414] grid grid-cols-[1fr_36px_36px_52px_52px_56px] gap-1 items-start"
+                    key={`${l.nom}-${l.date}-${i}`}
+                    className="px-2 py-3 border-b border-[#141414] grid grid-cols-[1fr_40px_40px_44px_48px_56px] gap-1 items-start"
                   >
                     <p className="font-unbounded text-white text-[10px] leading-tight">{l.nom}</p>
-                    <p className="font-montserrat text-[10px] text-[#aaa] text-right">{l.nombre_casiers}</p>
-                    <p className="font-montserrat text-[10px] text-[#aaa] text-right">{l.bouteilles_unites}</p>
+                    <p className="font-montserrat text-[10px] text-[#aaa] text-right">{l.total_btl_initial}</p>
+                    <p className="font-montserrat text-[10px] text-[#aaa] text-right">{l.total_btl_restant}</p>
+                    <p className="font-montserrat text-[10px] text-[#aaa] text-right">{l.bouteilles_vendues}</p>
                     <p className="font-montserrat text-[9px] text-[#888] text-right leading-tight">
-                      {l.valeur_casiers.toLocaleString('fr-FR')}
-                    </p>
-                    <p className="font-montserrat text-[9px] text-[#888] text-right leading-tight">
-                      {l.valeur_bouteilles.toLocaleString('fr-FR')}
+                      {l.prix_bouteille.toLocaleString('fr-FR')}
                     </p>
                     <p className="font-montserrat text-[10px] text-[#00C96B] text-right font-semibold leading-tight">
-                      {l.valeur_totale.toLocaleString('fr-FR')}
+                      {l.recette.toLocaleString('fr-FR')}
                     </p>
                   </div>
                 ))}
@@ -308,7 +296,7 @@ export default function RecettePage() {
           <div className="px-4 pb-8">
             <button
               onClick={exportPDF}
-              disabled={!client || resultats.length === 0}
+              disabled={!client || lignes.length === 0}
               className="w-full bg-[#00C96B] text-black font-unbounded font-bold text-sm tracking-wider min-h-[56px] disabled:opacity-40"
             >
               EXPORTER EN PDF

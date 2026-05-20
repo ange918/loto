@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Produit } from '../lib/types'
-import { calculerValeurStock, formaterFCFA } from '../lib/calcul'
+import { calculerRecette, formaterFCFA } from '../lib/calcul'
 
 type LigneValues = {
   stock_initial_casiers: number
@@ -42,20 +42,17 @@ export default function ProduitRow({
     return () => clearTimeout(t)
   }, [prixSaved])
 
-  const stockRestant =
-    prixCasier > 0
-      ? calculerValeurStock(casiers, bouteilles, prixCasier, produit.bouteilles_casier)
-      : null
-
-  const stockInitial =
-    prixCasier > 0 && stock_initial_casiers > 0
-      ? calculerValeurStock(
-          stock_initial_casiers,
-          stock_initial_bouteilles,
-          prixCasier,
-          produit.bouteilles_casier
-        )
-      : null
+  const showRecette = stock_initial_casiers > 0 && prixCasier > 0
+  const result = showRecette
+    ? calculerRecette(
+        stock_initial_casiers,
+        stock_initial_bouteilles,
+        casiers,
+        bouteilles,
+        prixCasier,
+        produit.bouteilles_casier
+      )
+    : null
 
   const inputs: { field: Field; label: string }[] = [
     { field: 'stock_initial_casiers', label: 'STOCK INIT. CAS.' },
@@ -120,33 +117,43 @@ export default function ProduitRow({
         )}
       </div>
 
-      {prixCasier === 0 && (
+      {stock_initial_casiers === 0 && (
         <p className="font-montserrat text-[#666] text-xs mt-3">
-          Entrez le prix du casier
+          Entrez le stock initial pour calculer la recette
         </p>
       )}
 
-      {stockRestant && (
+      {stock_initial_casiers > 0 && prixCasier === 0 && (
+        <p className="font-montserrat text-[#666] text-xs mt-3">
+          Entrez le prix du casier pour calculer la recette
+        </p>
+      )}
+
+      {result && result.bouteilles_vendues < 0 && (
+        <p className="font-montserrat text-red-400 text-xs mt-3">
+          ⚠ Restant supérieur au stock initial — vérifier les valeurs
+        </p>
+      )}
+
+      {result && result.bouteilles_vendues >= 0 && (
         <div
           className="bg-[#1E1E1E] p-3 mt-2 space-y-1 font-montserrat text-xs text-[#aaa]"
           style={{ borderLeft: '3px solid #00C96B' }}
         >
-          <p className="font-unbounded text-[#00C96B] text-[10px] tracking-wider mb-2">
-            VALEUR DU STOCK ACTUEL
+          <p className="font-unbounded text-[#00C96B] text-[10px] tracking-wider mb-2">RECETTE ESTIMÉE</p>
+          <p className="text-[#555]">─────────────────────────────────────</p>
+          <p>Stock initial : {result.total_btl_initial} bouteilles</p>
+          <p>Stock restant : {result.total_btl_restant} bouteilles</p>
+          <p>Vendues : {result.bouteilles_vendues} bouteilles</p>
+          <p>Prix/bouteille : {result.prix_bouteille.toLocaleString('fr-FR')} FCFA</p>
+          <p className="text-[#555]">─────────────────────────────────────</p>
+          <p className="font-unbounded text-[#00C96B] font-bold text-base">
+            RECETTE : {formaterFCFA(result.recette)}
           </p>
-          <p>Casiers : {formaterFCFA(stockRestant.valeur_casiers)}</p>
-          <p>Volantes : {formaterFCFA(stockRestant.valeur_bouteilles)}</p>
-          <p className="text-[#555]">──────────────────────────────</p>
-          <p className="font-unbounded text-[#00C96B] font-bold text-sm">
-            TOTAL : {formaterFCFA(stockRestant.valeur_totale)}
+          <p className="font-montserrat text-[#666] text-[10px] mt-1">
+            Stock restant valorisé : {formaterFCFA(result.valeur_stock_restant)}
           </p>
         </div>
-      )}
-
-      {stockInitial && (
-        <p className="font-montserrat text-[#666] text-[10px] mt-2">
-          Stock initial valorisé : {formaterFCFA(stockInitial.valeur_totale)}
-        </p>
       )}
     </div>
   )
