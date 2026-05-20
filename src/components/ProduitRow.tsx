@@ -42,16 +42,16 @@ export default function ProduitRow({
     return () => clearTimeout(t)
   }, [prixSaved])
 
-  const casiers_vendus = stock_initial_casiers - casiers
-  const bouteilles_vendues = stock_initial_bouteilles - bouteilles
-  const showWarning = casiers_vendus < 0
-  const showDetail = stock_initial_casiers > 0
+  const stockRestant =
+    prixCasier > 0
+      ? calculerValeurStock(casiers, bouteilles, prixCasier, produit.bouteilles_casier)
+      : null
 
-  const result =
-    prixCasier > 0 && showDetail
+  const stockInitial =
+    prixCasier > 0 && stock_initial_casiers > 0
       ? calculerValeurStock(
-          casiers_vendus,
-          bouteilles_vendues,
+          stock_initial_casiers,
+          stock_initial_bouteilles,
           prixCasier,
           produit.bouteilles_casier
         )
@@ -120,35 +120,33 @@ export default function ProduitRow({
         )}
       </div>
 
-      {showDetail && (
-        <div className="mt-3">
-          {showWarning && (
-            <p className="font-montserrat text-red-400 text-xs mb-2">
-              ⚠ Restant supérieur au stock initial
-            </p>
-          )}
-          {prixCasier === 0 && (
-            <p className="font-montserrat text-[#666] text-xs">
-              Entrez le prix du casier pour voir la valeur
-            </p>
-          )}
-          {result && (
-            <div
-              className="bg-[#1E1E1E] p-3 space-y-1 font-montserrat text-xs text-[#aaa]"
-              style={{ borderLeft: '3px solid #00C96B' }}
-            >
-              <p className="text-[#00C96B] font-semibold">
-                Vendus : {casiers_vendus} cas. + {bouteilles_vendues} vol.
-              </p>
-              <p>Valeur casiers : {formaterFCFA(result.valeur_casiers)}</p>
-              <p>Valeur volantes : {formaterFCFA(result.valeur_bouteilles)}</p>
-              <p className="text-[#555]">─────────────────────────────</p>
-              <p className="font-unbounded text-[#00C96B] font-bold text-sm">
-                TOTAL : {formaterFCFA(result.valeur_totale)}
-              </p>
-            </div>
-          )}
+      {prixCasier === 0 && (
+        <p className="font-montserrat text-[#666] text-xs mt-3">
+          Entrez le prix du casier
+        </p>
+      )}
+
+      {stockRestant && (
+        <div
+          className="bg-[#1E1E1E] p-3 mt-2 space-y-1 font-montserrat text-xs text-[#aaa]"
+          style={{ borderLeft: '3px solid #00C96B' }}
+        >
+          <p className="font-unbounded text-[#00C96B] text-[10px] tracking-wider mb-2">
+            VALEUR DU STOCK ACTUEL
+          </p>
+          <p>Casiers : {formaterFCFA(stockRestant.valeur_casiers)}</p>
+          <p>Volantes : {formaterFCFA(stockRestant.valeur_bouteilles)}</p>
+          <p className="text-[#555]">──────────────────────────────</p>
+          <p className="font-unbounded text-[#00C96B] font-bold text-sm">
+            TOTAL : {formaterFCFA(stockRestant.valeur_totale)}
+          </p>
         </div>
+      )}
+
+      {stockInitial && (
+        <p className="font-montserrat text-[#666] text-[10px] mt-2">
+          Stock initial valorisé : {formaterFCFA(stockInitial.valeur_totale)}
+        </p>
       )}
     </div>
   )

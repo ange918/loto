@@ -1,8 +1,8 @@
-export interface ResultatCalcProduit {
+export interface ResultatCalcStock {
   valeur_casiers: number
   valeur_bouteilles: number
   valeur_totale: number
-  prix_unitaire: number // prix_casier / bouteilles_casier, arrondi 2 décimales
+  prix_unitaire: number
 }
 
 export function calculerValeurStock(
@@ -10,9 +10,8 @@ export function calculerValeurStock(
   bouteilles_unites: number,
   prix_casier: number,
   bouteilles_par_casier: number = 24
-): ResultatCalcProduit {
+): ResultatCalcStock {
   const prix_unitaire = prix_casier / bouteilles_par_casier
-
   const valeur_casiers = nombre_casiers * prix_casier
   const valeur_bouteilles = Math.round(prix_unitaire * bouteilles_unites)
   const valeur_totale = valeur_casiers + valeur_bouteilles
@@ -35,7 +34,7 @@ export interface LigneInventaire {
 }
 
 export interface ResultatInventaire {
-  lignes: (LigneInventaire & ResultatCalcProduit)[]
+  lignes: (LigneInventaire & ResultatCalcStock)[]
   total_general: number
 }
 
@@ -55,5 +54,5 @@ export function calculerInventaire(produits: LigneInventaire[]): ResultatInventa
 }
 
 export function formaterFCFA(montant: number): string {
-  return montant.toLocaleString('fr-FR') + ' FCFA'
+  return Math.max(0, montant).toLocaleString('fr-FR') + ' FCFA'
 }
